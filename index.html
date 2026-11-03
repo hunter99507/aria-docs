@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aria — Technical Documentation & Architecture Reference</title>
+  <meta name="description" content="Technical documentation and code verification report for Aria, the self-hosted audio player for Android." />
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --transition: 0.18s ease;
+
+      --header-height: 64px;
+      --sidebar-width: 270px;
+      --toc-width: 220px;
+    }
+
+    [data-theme="dark"] {
+      --bg: #0b0f19;
+      --bg-subtle: #111827;
+      --surface: #151e32;
+      --surface-hover: #1c2842;
+      --surface-elevated: #1a243c;
+
+      --border: #23304a;
+      --border-subtle: #1a253a;
+
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-subtle: #64748b;
+
+      --primary: #38bdf8;
+      --primary-hover: #7dd3fc;
+      --primary-tint: rgba(56, 189, 248, 0.1);
+      --primary-border: rgba(56, 189, 248, 0.25);
+
+      --success: #34d399;
+      --success-tint: rgba(52, 211, 153, 0.12);
+      --success-border: rgba(52, 211, 153, 0.3);
+
+      --warning: #fbbf24;
+      --warning-tint: rgba(251, 191, 36, 0.12);
+      --warning-border: rgba(251, 191, 36, 0.3);
+
+      --danger: #f87171;
+      --danger-tint: rgba(248, 113, 113, 0.12);
+      --danger-border: rgba(248, 113, 113, 0.3);
+
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+      --shadow-md: 0 4px 14px rgba(0,0,0,0.4);
+      --shadow-lg: 0 10px 30px rgba(0,0,0,0.5);
+
+      --code-bg: #0e1626;
+      --badge-bg: #1e293b;
+    }
+
+    [data-theme="light"] {
+      --bg: #ffffff;
+      --bg-subtle: #f8fafc;
+      --surface: #ffffff;
+      --surface-hover: #f1f5f9;
+      --surface-elevated: #ffffff;
+
+      --border: #e2e8f0;
+      --border-subtle: #edf2f7;
+
+      --text: #0f172a;
+      --text-muted: #475569;
+      --text-subtle: #94a3b8;
+
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --primary-tint: rgba(2, 132, 199, 0.08);
+      --primary-border: rgba(2, 132, 199, 0.22);
+
+      --success: #059669;
+      --success-tint: rgba(5, 150, 105, 0.08);
+      --success-border: rgba(5, 150, 105, 0.25);
+
+      --warning: #d97706;
+      --warning-tint: rgba(217, 119, 6, 0.08);
+      --warning-border: rgba(217, 119, 6, 0.25);
+
+      --danger: #dc2626;
+      --danger-tint: rgba(220, 38, 38, 0.08);
+      --danger-border: rgba(220, 38, 38, 0.25);
+
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+      --shadow-lg: 0 10px 25px rgba(0,0,0,0.08);
+
+      --code-bg: #f1f5f9;
+      --badge-bg: #e2e8f0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: calc(var(--header-height) + 24px);
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* TOP NAVBAR */
+    .top-header {
+      position: sticky;
+      top: 0;
+      height: var(--header-height);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 700;
+      font-size: 1.15rem;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, var(--primary), #818cf8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+
+    .version-pill {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      background: var(--primary-tint);
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .nav-link {
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 0.4rem 0.75rem;
+      border-radius: var(--radius-sm);
+      transition: color var(--transition), background var(--transition);
+    }
+    .nav-link:hover {
+      color: var(--text);
+      background: var(--surface-hover);
+    }
+
+    .btn-icon {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all var(--transition);
+    }
+    .btn-icon:hover {
+      border-color: var(--text-muted);
+      color: var(--text);
+      background: var(--surface-hover);
+    }
+
+    .mobile-menu-toggle {
+      display: none;
+    }
+
+    /* MAIN APP LAYOUT */
+    .app-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      min-height: calc(100vh - var(--header-height));
+    }
+
+    /* LEFT SIDEBAR */
+    .sidebar {
+      width: var(--sidebar-width);
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      padding: 1.5rem 1rem 3rem;
+      position: sticky;
+      top: var(--header-height);
+      height: calc(100vh - var(--header-height));
+      overflow-y: auto;
+    }
+
+    .sidebar-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .sidebar-heading {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-subtle);
+      margin-bottom: 0.5rem;
+      padding-left: 0.75rem;
+    }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.45rem 0.75rem;
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition);
+      font-weight: 500;
+    }
+
+    .sidebar-link:hover {
+      color: var(--text);
+      background: var(--surface-hover);
+    }
+
+    .sidebar-link.active {
+      color: var(--primary);
+      background: var(--primary-tint);
+      font-weight: 600;
+    }
+
+    /* CONTENT AREA */
+    .main-content {
+      flex: 1;
+      min-width: 0;
+      padding: 2.5rem 3.5rem 6rem;
+    }
+
+    /* RIGHT TOC */
+    .right-toc {
+      width: var(--toc-width);
+      flex-shrink: 0;
+      padding: 2.5rem 1.25rem;
+      position: sticky;
+      top: var(--header-height);
+      height: calc(100vh - var(--header-height));
+      overflow-y: auto;
+    }
+
+    .toc-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-subtle);
+      margin-bottom: 0.75rem;
+    }
+
+    .toc-link {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 0.3rem 0;
+      transition: color var(--transition);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .toc-link:hover {
+      color: var(--primary);
+    }
+
+    /* HERO CARD */
+    .doc-hero {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 2.5rem;
+      margin-bottom: 3rem;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .doc-hero::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary), #818cf8, #34d399);
+    }
+
+    .doc-title {
+      font-size: 2.3rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 0.75rem;
+    }
+
+    .doc-lead {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 1.6rem;
+    }
+
+    .badge-bar {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .spec-pill {
+      font-size: 0.78rem;
+      font-weight: 500;
+      padding: 0.35rem 0.8rem;
+      border-radius: 999px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    /* CONTENT TYPOGRAPHY */
+    h2.section-header-title {
+      font-size: 1.55rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 3rem 0 1.25rem;
+      padding-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    h2.section-header-title:first-of-type {
+      margin-top: 0;
+    }
+
+    h3 {
+      font-size: 1.18rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin: 1.8rem 0 0.8rem;
+      color: var(--text);
+    }
+
+    p {
+      margin-bottom: 1.1rem;
+      color: var(--text-muted);
+      font-size: 0.96rem;
+    }
+
+    p strong, li strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    ul, ol {
+      margin-bottom: 1.25rem;
+      padding-left: 1.5rem;
+    }
+
+    li {
+      margin-bottom: 0.5rem;
+      color: var(--text-muted);
+      font-size: 0.94rem;
+    }
+
+    /* CODE STYLING */
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.85em;
+      padding: 0.18em 0.4em;
+      border-radius: var(--radius-sm);
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      color: var(--primary);
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1.1rem 1.3rem;
+      overflow-x: auto;
+      margin: 1.2rem 0;
+      font-family: var(--font-mono);
+      font-size: 0.86rem;
+      line-height: 1.5;
+    }
+
+    /* CALLOUT BLOCKS */
+    .callout {
+      border-radius: var(--radius-md);
+      padding: 1.1rem 1.3rem;
+      margin: 1.4rem 0;
+      display: flex;
+      gap: 0.9rem;
+      font-size: 0.92rem;
+      border: 1px solid transparent;
+    }
+
+    .callout-icon {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      margin-top: 0.15rem;
+    }
+
+    .callout-content {
+      flex: 1;
+    }
+
+    .callout-content p:last-child {
+      margin-bottom: 0;
+    }
+
+    .callout-info {
+      background: var(--primary-tint);
+      border-color: var(--primary-border);
+      color: var(--text);
+    }
+    .callout-info .callout-icon { color: var(--primary); }
+
+    .callout-warning {
+      background: var(--danger-tint);
+      border-color: var(--danger-border);
+      color: var(--text);
+    }
+    .callout-warning .callout-icon { color: var(--danger); }
+
+    .callout-tip {
+      background: var(--success-tint);
+      border-color: var(--success-border);
+      color: var(--text);
+    }
+    .callout-tip .callout-icon { color: var(--success); }
+
+    /* FEATURE CARDS */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin: 1.4rem 0;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1.4rem;
+      transition: border-color var(--transition), transform var(--transition);
+    }
+
+    .card:hover {
+      border-color: var(--primary-border);
+      transform: translateY(-2px);
+    }
+
+    .card-title {
+      font-size: 1.02rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card-desc {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      margin-bottom: 0;
+    }
+
+    /* TABLES */
+    .table-wrap {
+      overflow-x: auto;
+      margin: 1.4rem 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.88rem;
+    }
+
+    th {
+      background: var(--bg-subtle);
+      color: var(--text);
+      font-weight: 600;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: var(--surface-hover);
+    }
+
+    /* AUDIT BADGES */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .status-confirmed {
+      background: var(--success-tint);
+      color: var(--success);
+      border: 1px solid var(--success-border);
+    }
+
+    .status-not-confirmed {
+      background: var(--danger-tint);
+      color: var(--danger);
+      border: 1px solid var(--danger-border);
+    }
+
+    .status-partial {
+      background: var(--warning-tint);
+      color: var(--warning);
+      border: 1px solid var(--warning-border);
+    }
+
+    /* FOOTER */
+    .site-footer {
+      margin-top: 4rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      font-size: 0.82rem;
+      color: var(--text-subtle);
+    }
+
+    /* RESPONSIVE BREAKPOINTS */
+    @media (max-width: 1100px) {
+      .right-toc {
+        display: none;
+      }
+      .main-content {
+        padding: 2rem 2rem 5rem;
+      }
+    }
+
+    @media (max-width: 820px) {
+      .sidebar {
+        position: fixed;
+        left: -100%;
+        top: var(--header-height);
+        background: var(--bg);
+        z-index: 40;
+        transition: left 0.25s ease;
+        box-shadow: var(--shadow-lg);
+      }
+      .sidebar.open {
+        left: 0;
+      }
+      .mobile-menu-toggle {
+        display: flex;
+      }
+      .main-content {
+        padding: 1.5rem 1rem 4rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP HEADER -->
+  <header class="top-header">
+    <div class="header-left">
+      <button class="btn-icon mobile-menu-toggle" onclick="toggleSidebar()" aria-label="Toggle Navigation">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <a href="#" class="brand-logo">
+        <div class="brand-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </div>
+        <span>Aria</span>
+      </a>
+      <span class="version-pill">v1.31.10</span>
+    </div>
+
+    <div class="header-right">
+      <a href="#claims-audit" class="nav-link">Verification Audit</a>
+      <a href="https://github.com/hunter99507/aria-docs" target="_blank" class="btn-icon" aria-label="GitHub Repository">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+      </a>
+      <button class="btn-icon" onclick="toggleTheme()" aria-label="Toggle Theme">
+        <svg id="themeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="app-container">
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-group">
+        <div class="sidebar-heading">Getting Started</div>
+        <a href="#overview" class="sidebar-link">Overview</a>
+        <a href="#licensing" class="sidebar-link">Free vs. Paid</a>
+        <a href="#quickstart" class="sidebar-link">Quickstart</a>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-heading">Connecting Servers</div>
+        <a href="#navidrome" class="sidebar-link">Navidrome / Subsonic</a>
+        <a href="#jellyfin" class="sidebar-link">Jellyfin (Audio Only)</a>
+        <a href="#emby" class="sidebar-link">Emby (Audio Only)</a>
+        <a href="#audiobookshelf" class="sidebar-link">Audiobookshelf</a>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-heading">Features & Storage</div>
+        <a href="#local-files" class="sidebar-link">Local Files & Permissions</a>
+        <a href="#audiobooks" class="sidebar-link">Audiobooks & Sync</a>
+        <a href="#android-auto" class="sidebar-link">Android Auto</a>
+        <a href="#downloads-cache" class="sidebar-link">Downloads & Cache</a>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-heading">Security & Network</div>
+        <a href="#remote-access" class="sidebar-link">Remote Access & VPNs</a>
+        <a href="#ssl-certificates" class="sidebar-link">Certificates & LAN HTTP</a>
+        <a href="#privacy" class="sidebar-link">Privacy & Network Traffic</a>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-heading">Reference & Verification</div>
+        <a href="#troubleshooting" class="sidebar-link">Troubleshooting & FAQ</a>
+        <a href="#claims-audit" class="sidebar-link" style="color: var(--primary);">Code Verification Matrix</a>
+        <a href="#architectural-notes" class="sidebar-link">Implementation Findings</a>
+      </div>
+    </aside>
+
+    <!-- MAIN ARTICLE -->
+    <main class="main-content">
+
+      <!-- HERO BANNER -->
+      <div class="doc-hero">
+        <h1 class="doc-title">Aria Documentation</h1>
+        <p class="doc-lead">A unified Android client for Navidrome, Jellyfin, Emby, Audiobookshelf, and local storage. Direct client-to-server connectivity with zero cloud telemetry.</p>
+        <div class="badge-bar">
+          <span class="spec-pill">Free Local Player</span>
+          <span class="spec-pill">$4.99 One-Time Server Unlock</span>
+          <span class="spec-pill">No Subscriptions</span>
+          <span class="spec-pill">ExoPlayer / Media3 Engine</span>
+          <span class="spec-pill">Android Auto Built-in</span>
+        </div>
+      </div>
+
+      <!-- 1. OVERVIEW -->
+      <section id="overview">
+        <h2 class="section-header-title">
+          <span>01</span> Overview
+        </h2>
+        <p>Aria is an independent audio player for Android designed specifically for personal media server operators. It bridges the gap between music streaming servers and dedicated audiobook servers by combining both libraries into one responsive playback interface.</p>
+        <p>Aria contains no middleman servers, cloud databases, or tracking infrastructure. Your phone connects straight to your server instances, and all authentication tokens stay sandboxed on your device.</p>
+
+        <div class="card-grid">
+          <div class="card">
+            <div class="card-title">Navidrome & Subsonic</div>
+            <p class="card-desc">Music streaming, album/artist navigation, server playlists, caching, and native Subsonic scrobbling.</p>
+          </div>
+          <div class="card">
+            <div class="card-title">Jellyfin & Emby</div>
+            <p class="card-desc">Full audio catalog playback, search, and playback session reporting. Video libraries are strictly filtered out.</p>
+          </div>
+          <div class="card">
+            <div class="card-title">Audiobookshelf</div>
+            <p class="card-desc">Chapter markers, bookmarks, sleep timers, and bidirectional progress synchronization.</p>
+          </div>
+          <div class="card">
+            <div class="card-title">Local Device Storage</div>
+            <p class="card-desc">Comprehensive offline player for local music collections and standalone M4B/MP3 audiobook files.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. LICENSING -->
+      <section id="licensing">
+        <h2 class="section-header-title">
+          <span>02</span> Free vs. Paid (Pro Unlock)
+        </h2>
+        <p>Local media playback is 100% free forever without advertising, feature gating, or nag screens. Connecting to self-hosted media servers is gated behind a single one-time Pro purchase of <strong>$4.99</strong> through Google Play Billing. There are no recurring subscriptions.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Capability / Feature</th>
+                <th>Free Tier (Local Only)</th>
+                <th>Pro Unlock ($4.99 Lifetime)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Local Music & Audiobooks</strong></td>
+                <td><span class="status-badge status-confirmed">Included</span> Free forever</td>
+                <td><span class="status-badge status-confirmed">Included</span> Free forever</td>
+              </tr>
+              <tr>
+                <td><strong>M4B Chapter Navigation & Bookmarks</strong></td>
+                <td><span class="status-badge status-confirmed">Included</span> Local files</td>
+                <td><span class="status-badge status-confirmed">Included</span> Local + Audiobookshelf</td>
+              </tr>
+              <tr>
+                <td><strong>Equalizer & Bass Boost</strong></td>
+                <td><span class="status-badge status-confirmed">Included</span> 10-band graphic EQ</td>
+                <td><span class="status-badge status-confirmed">Included</span> 10-band graphic EQ</td>
+              </tr>
+              <tr>
+                <td><strong>Smart Shuffle Engine</strong></td>
+                <td><span class="status-badge status-confirmed">Included</span> Skip/finish learning</td>
+                <td><span class="status-badge status-confirmed">Included</span> Local & remote pools</td>
+              </tr>
+              <tr>
+                <td><strong>Android Auto Support</strong></td>
+                <td><span class="status-badge status-confirmed">Included</span> Local files & books</td>
+                <td><span class="status-badge status-confirmed">Included</span> Full server browsing & streaming</td>
+              </tr>
+              <tr>
+                <td><strong>Remote Server Streaming</strong></td>
+                <td><span class="status-badge status-not-confirmed">Locked</span></td>
+                <td><span class="status-badge status-confirmed">Unlocked</span> Unlimited servers</td>
+              </tr>
+              <tr>
+                <td><strong>Offline Downloads from Servers</strong></td>
+                <td><span class="status-badge status-not-confirmed">Locked</span></td>
+                <td><span class="status-badge status-confirmed">Unlocked</span> Albums, tracks & books</td>
+              </tr>
+              <tr>
+                <td><strong>Audiobookshelf Progress Sync</strong></td>
+                <td><span class="status-badge status-not-confirmed">Locked</span></td>
+                <td><span class="status-badge status-confirmed">Unlocked</span> Real-time 2-way sync</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout callout-info">
+          <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          <div class="callout-content">
+            <strong>Gating Implementation:</strong> Verification is managed in <code>ProManager.isUnlocked()</code> and checked in <code>MusicService.kt:3430</code>. If an unentitled user attempts to initiate a remote playback stream, playback is prevented and the purchase sheet is presented.
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. QUICKSTART -->
+      <section id="quickstart">
+        <h2 class="section-header-title">
+          <span>03</span> Quickstart: Adding a Server
+        </h2>
+        <ol>
+          <li>Open <strong>Settings</strong> via the gear icon in the main navigation bar.</li>
+          <li>Under <strong>Media Providers</strong>, tap <strong>Add Media Provider</strong>.</li>
+          <li>Select your server backend from the dropdown menu (<code>Navidrome / Subsonic</code>, <code>Jellyfin</code>, <code>Emby</code>, or <code>Audiobookshelf</code>).</li>
+          <li>Enter your server URL including protocol and port (e.g. <code>http://192.168.1.50:4533</code>).</li>
+          <li>Enter your server username and password, then tap <strong>Add</strong> or <strong>Login</strong>.</li>
+          <li>Once authenticated, Aria immediately begins synchronizing library indexes in the background.</li>
+        </ol>
+      </section>
+
+      <!-- 4. SERVER CONFIGURATIONS -->
+      <section id="navidrome">
+        <h2 class="section-header-title">
+          <span>04</span> Server Setup Specifications
+        </h2>
+
+        <h3>Navidrome & Subsonic-Compatible Servers</h3>
+        <p>Aria implements the Subsonic REST API (spec <code>1.16.1</code>) using modern salt and MD5 token authentication.</p>
+        <ul>
+          <li><strong>URL Format:</strong> <code>http://[host]:[port]</code> or <code>https://[domain]</code> (e.g., <code>http://192.168.1.50:4533</code>).</li>
+          <li><strong>Authentication:</strong> Username and plaintext password (the app computes <code>token = md5(password + salt)</code> for network calls).</li>
+          <li><strong>Verification:</strong> The app executes a test query to <code>/rest/ping</code>. On success, the UI displays <code>Status: ok</code>.</li>
+        </ul>
+
+        <h3 id="jellyfin" style="margin-top: 2rem;">Jellyfin (Audio Only)</h3>
+        <p>Connects via the Jellyfin REST API. Non-audio collections (movies, TV shows, photos) are filtered out.</p>
+        <ul>
+          <li><strong>URL Format:</strong> <code>http://[host]:8096</code> or <code>https://jellyfin.example.com</code>.</li>
+          <li><strong>Authentication:</strong> Authenticates via POST to <code>/Users/AuthenticateByName</code>. Aria receives and persists an access token and user GUID.</li>
+          <li><strong>Verification:</strong> The connection status reads <code>Connected — continue</code>. Tap Continue to load audio libraries.</li>
+        </ul>
+
+        <h3 id="emby" style="margin-top: 2rem;">Emby (Audio Only)</h3>
+        <p>Uses Emby's native client authorization protocol (sending both <code>X-Emby-Token</code> and <code>X-MediaBrowser-Token</code> for maximum version compatibility).</p>
+        <ul>
+          <li><strong>URL Format:</strong> <code>http://[host]:8096</code> or <code>https://emby.example.com</code>.</li>
+          <li><strong>Authentication:</strong> Username and password via POST <code>/Users/AuthenticateByName</code>.</li>
+          <li><strong>Verification:</strong> The UI verifies authorization and prompts <code>Connected — continue</code>.</li>
+        </ul>
+
+        <h3 id="audiobookshelf" style="margin-top: 2rem;">Audiobookshelf</h3>
+        <p>Aria connects directly to your Audiobookshelf server's REST API to stream audio, fetch chapter marks, and update listening positions.</p>
+        <ul>
+          <li><strong>Location in App:</strong> Navigated to via <strong>Settings > Audiobooks > Audiobookshelf</strong>.</li>
+          <li><strong>URL Format:</strong> <code>http://[host]:13378</code> or <code>https://audiobooks.example.com</code>.</li>
+          <li><strong>Authentication:</strong> POST to <code>/login</code> returning a Bearer authentication token.</li>
+          <li><strong>Verification:</strong> Displays a toast confirmation: <code>Audiobookshelf connected</code>.</li>
+        </ul>
+      </section>
+
+      <!-- 5. LOCAL FILES -->
+      <section id="local-files">
+        <h2 class="section-header-title">
+          <span>05</span> Local Files & Storage Access
+        </h2>
+        <p>Aria functions as a high-performance standalone player for audio files stored on device storage or microSD cards.</p>
+        <ul>
+          <li><strong>Supported Codecs:</strong> FLAC, MP3, AAC, Opus, WAV, OGG, and M4B/M4A containers.</li>
+          <li><strong>Android 13+ Permissions:</strong> Requests <code>READ_MEDIA_AUDIO</code> for MediaStore scanning.</li>
+          <li><strong>Legacy Android Permissions:</strong> Requests <code>READ_EXTERNAL_STORAGE</code> on Android 12 and earlier.</li>
+          <li><strong>Background Notifications:</strong> Requests <code>POST_NOTIFICATIONS</code> to manage lock screen media controls.</li>
+          <li><strong>Storage Access Framework (SAF):</strong> Supports granting permanent read access to custom external folders or selecting individual <code>.m4b</code> files via the system picker.</li>
+        </ul>
+      </section>
+
+      <!-- 6. REMOTE ACCESS -->
+      <section id="remote-access">
+        <h2 class="section-header-title">
+          <span>06</span> Remote Access & Proxy Configurations
+        </h2>
+        <p>Aria does not provide hosted relay servers. Remote access depends on your personal network configuration:</p>
+
+        <div class="card-grid">
+          <div class="card">
+            <div class="card-title">Encrypted VPN Mesh (Best)</div>
+            <p class="card-desc">Connect via Tailscale, WireGuard, or OpenVPN. Enter your server's internal VPN IP (e.g., <code>http://100.64.0.12:4533</code>). Zero port forwarding and no public SSL headaches.</p>
+          </div>
+          <div class="card">
+            <div class="card-title">Reverse Proxy (HTTPS)</div>
+            <p class="card-desc">Caddy, Traefik, Nginx, or Cloudflare Tunnels with a globally recognized SSL certificate (such as Let's Encrypt).</p>
+          </div>
+        </div>
+
+        <div class="callout callout-warning">
+          <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"/></svg>
+          <div class="callout-content">
+            <strong>Authenticating Reverse Proxies (Authelia, Authentik, Cloudflare Access):</strong>
+            Aria does not support injecting arbitrary custom HTTP headers (such as <code>Remote-User</code>) or browser-based SSO redirects. If your reverse proxy requires forward-auth, Aria cannot authenticate. You must configure bypass rules in your proxy for Aria's API paths or connect through a VPN.
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. SSL CERTIFICATES -->
+      <section id="ssl-certificates">
+        <h2 class="section-header-title">
+          <span>07</span> Certificates, SSL & LAN HTTP
+        </h2>
+        <ul>
+          <li><strong>Plain HTTP and LAN IPs:</strong> Fully supported. Cleartext HTTP traffic is explicitly enabled in <code>AndroidManifest.xml</code> (<code>android:usesCleartextTraffic="true"</code>) and <code>network_security_config.xml</code>.</li>
+          <li><strong>Public HTTPS:</strong> Fully supported when backed by a recognized CA (e.g. Let's Encrypt).</li>
+        </ul>
+
+        <div class="callout callout-warning">
+          <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"/></svg>
+          <div class="callout-content">
+            <strong>Self-Signed Certificates Do Not Function for Playback or Downloads:</strong>
+            While certain REST metadata endpoints previously contained trust-bypass logic, the underlying ExoPlayer media engine (<code>DefaultDataSource</code>) and download workers utilize Android's native <code>HttpURLConnection</code>. Because Android enforces system trust anchors, <strong>audio streams and offline downloads over self-signed HTTPS will fail with SSLHandshakeException</strong>.
+            <br><br>
+            <strong>User-Installed CAs:</strong> Android ignores user-installed root CAs in release builds because <code>&lt;certificates src="user" /&gt;</code> is restricted to debug builds.
+            <br><br>
+            <strong>Recommended Solution:</strong> Use plain HTTP over WireGuard/Tailscale, or obtain a valid Let's Encrypt certificate.
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. DOWNLOADS & CACHING -->
+      <section id="downloads-cache">
+        <h2 class="section-header-title">
+          <span>08</span> Offline Downloads & Caching
+        </h2>
+        <div class="card-grid">
+          <div class="card">
+            <div class="card-title">Streaming Cache (250 MB LRU)</div>
+            <p class="card-desc">ExoPlayer maintains a 250 MB Least-Recently-Used disk cache in <code>media_stream_cache_v2</code>. When streaming on unmetered connections, it pre-caches the first 1 MB of upcoming queue items for instantaneous skip playback.</p>
+          </div>
+          <div class="card">
+            <div class="card-title">Image Cache (250 MB)</div>
+            <p class="card-desc">Managed by Coil in <code>image_cache</code> to store album artwork and artist portraits without re-downloading.</p>
+          </div>
+        </div>
+
+        <p style="margin-top: 1.25rem;"><strong>Offline Downloads:</strong></p>
+        <ul>
+          <li><strong>Music Tracks & Albums:</strong> Downloaded to internal app sandbox storage at <code>music_downloads/</code> (indexed via <code>downloads_index.json</code>).</li>
+          <li><strong>Audiobooks:</strong> Audiobookshelf books are downloaded into <code>audiobooks/</code>.</li>
+          <li><strong>Wi-Fi Only Toggle:</strong> In <strong>Settings > Downloads</strong>, toggle <strong>Wi-Fi only</strong> to prevent downloads on cellular data. When on mobile data, download jobs pause with the status <code>Waiting for Wi-Fi</code>.</li>
+        </ul>
+      </section>
+
+      <!-- 9. AUDIOBOOKS -->
+      <section id="audiobooks">
+        <h2 class="section-header-title">
+          <span>09</span> Audiobook Engine & Synchronization
+        </h2>
+        <p>Aria provides specialized playback ergonomics for long-form spoken-word audio:</p>
+        <ul>
+          <li><strong>Chapter Navigation:</strong> Automatic parsing of embedded M4B chapter tags and Audiobookshelf server chapters.</li>
+          <li><strong>Playback Speed:</strong> Fine-grained adjustment from <strong>0.5x to 2.0x</strong> in 0.1x increments.</li>
+          <li><strong>Bookmarks:</strong> Create named bookmarks with saved timestamps.</li>
+          <li><strong>Per-Book Memory:</strong> Position, duration, and completion states are stored independently per book.</li>
+        </ul>
+
+        <h3>Auto-Rewind on Resume</h3>
+        <p>When resuming playback, Aria automatically rewinds a small interval to restore listening context, clamped so it never crosses the current chapter boundary:</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Elapsed Pause Time</th>
+                <th>Rewind Offset</th>
+                <th>Boundary Constraint</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>&lt; 10 seconds</td>
+                <td><code>0.0s</code> (Instant resume)</td>
+                <td>N/A</td>
+              </tr>
+              <tr>
+                <td>10 seconds – 1 minute</td>
+                <td><code>3.0s</code></td>
+                <td>Clamped to chapter start</td>
+              </tr>
+              <tr>
+                <td>1 minute – 5 minutes</td>
+                <td><code>10.0s</code></td>
+                <td>Clamped to chapter start</td>
+              </tr>
+              <tr>
+                <td>5 minutes – 30 minutes</td>
+                <td><code>20.0s</code></td>
+                <td>Clamped to chapter start</td>
+              </tr>
+              <tr>
+                <td>&gt; 30 minutes</td>
+                <td><code>29.5s</code></td>
+                <td>Clamped to chapter start</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Audiobookshelf Two-Way Sync</h3>
+        <ul>
+          <li><strong>Client to Server:</strong> Progress updates sync on pause, stop, track end, and periodically via a background sync heartbeat.</li>
+          <li><strong>Server to Client:</strong> When resuming playback after being paused for 10 seconds or longer, Aria queries Audiobookshelf. If another device advanced the position and the server record is newer, Aria updates its position to match the server.</li>
+        </ul>
+      </section>
+
+      <!-- 10. ANDROID AUTO -->
+      <section id="android-auto">
+        <h2 class="section-header-title">
+          <span>10</span> Android Auto Integration
+        </h2>
+        <p>Aria implements Android's modern Media3 <code>MediaLibraryService</code> for vehicle head units:</p>
+        <ul>
+          <li><strong>Dashboard Navigation:</strong> Access Home, Albums, Songs, Artists, Playlists, and Audiobooks directly from the vehicle dashboard.</li>
+          <li><strong>Source Switching:</strong> Select the <strong>Sources</strong> menu on the car screen to switch between Local Storage, Local Audiobooks, Navidrome, Jellyfin, Emby, and Audiobookshelf.</li>
+          <li><strong>Audiobook Controls:</strong> Dedicated 15-second skip backward and 30-second skip forward buttons.</li>
+          <li><strong>Licensing Behavior:</strong> While Pro is locked, remote servers display an informational placeholder item (<code>Unlock Pro on your phone to play remote libraries</code>), while local music and local audiobooks remain fully playable.</li>
+        </ul>
+      </section>
+
+      <!-- 11. PRIVACY -->
+      <section id="privacy">
+        <h2 class="section-header-title">
+          <span>11</span> Privacy & Network Destinations
+        </h2>
+        <p><strong>Zero Telemetry:</strong> Aria contains no analytics SDKs, behavioral tracking, crash reporting services, or advertising frameworks (no Google Firebase, no Sentry, no Mixpanel).</p>
+        <p><strong>Credential Isolation:</strong> Server passwords, usernames, and authentication tokens are stored exclusively in the app's sandboxed private storage (<code>Context.MODE_PRIVATE</code> in <code>SharedPreferences</code>). They are never transmitted to any third-party server.</p>
+        
+        <p><strong>Outbound Network Requests:</strong> Traffic is strictly confined to:</p>
+        <ol>
+          <li><strong>Your Configured Servers:</strong> For media streaming, metadata, and progress syncing.</li>
+          <li><strong>Google Play Services:</strong> Play Billing (to verify Pro license purchases) and In-App Review.</li>
+          <li><strong>Artist Artwork Fallback:</strong> When an artist portrait is missing locally and on your server, <code>ArtistArtworkManager.kt</code> queries <code>api.deezer.com</code> and <code>itunes.apple.com</code> to resolve artist portraits.</li>
+        </ol>
+      </section>
+
+      <!-- 12. TROUBLESHOOTING -->
+      <section id="troubleshooting">
+        <h2 class="section-header-title">
+          <span>12</span> Troubleshooting & Diagnostics
+        </h2>
+
+        <div class="card" style="margin-bottom: 1rem;">
+          <div class="card-title" style="color: var(--danger);">"Wrong username or password"</div>
+          <p class="card-desc"><strong>Subsonic:</strong> Subsonic uses token-based MD5 authentication. Ensure your user account has streaming permissions enabled in the Navidrome/Subsonic server settings.<br><strong>Jellyfin/Emby:</strong> Verify you can log in through the web UI using the exact same username and password.</p>
+        </div>
+
+        <div class="card" style="margin-bottom: 1rem;">
+          <div class="card-title" style="color: var(--danger);">"SSL error — check server URL or cert"</div>
+          <p class="card-desc">The server is using an untrusted or self-signed SSL certificate. Connect over plain HTTP via VPN or obtain a certificate signed by a recognized Certificate Authority (e.g. Let's Encrypt).</p>
+        </div>
+
+        <div class="card" style="margin-bottom: 1rem;">
+          <div class="card-title" style="color: var(--danger);">"Can't reach server — check the URL"</div>
+          <p class="card-desc">Ensure the URL includes <code>http://</code> or <code>https://</code> and the explicit port number (e.g., <code>:4533</code>, <code>:8096</code>, <code>:13378</code>).</p>
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="color: var(--warning);">HTTP 301 / 302 Redirection Loops</div>
+          <p class="card-desc">Check reverse proxy trailing-slash rules. Ensure POST endpoints (such as <code>/login</code>) are not rewritten as GET requests during reverse-proxy redirects.</p>
+        </div>
+      </section>
+
+      <!-- 13. CODE AUDIT MATRIX -->
+      <section id="claims-audit">
+        <h2 class="section-header-title">
+          <span>13</span> Code Verification Audit Matrix
+        </h2>
+        <p>The following matrix audits the 13 public claims against the actual Aria Kotlin codebase, Gradle build scripts, and Android manifests:</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 45px;">#</th>
+                <th>Public Claim</th>
+                <th style="width: 140px;">Verification</th>
+                <th>Source Code Reference & Evidence</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>1</strong></td>
+                <td><strong>LAN HTTP connections work</strong></td>
+                <td><span class="status-badge status-confirmed">Confirmed</span></td>
+                <td>
+                  <code>AndroidManifest.xml:34</code> (<code>android:usesCleartextTraffic="true"</code>)<br>
+                  <code>network_security_config.xml:3</code> (<code>cleartextTrafficPermitted="true"</code>)<br>
+                  <code>NavidromeManager.kt:217</code> explicitly formats LAN subnets as <code>http://$trimmed</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>2</strong></td>
+                <td><strong>Self-signed certificates work</strong></td>
+                <td><span class="status-badge status-not-confirmed">Not Confirmed</span></td>
+                <td>
+                  <code>player/MusicService.kt:876</code> (ExoPlayer uses native <code>DefaultDataSource</code>)<br>
+                  <code>MusicDownloadManager.kt:371</code> and <code>AudiobookDownloadManager.kt:395</code> use standard <code>HttpURLConnection</code> without trust managers. Audio streaming and downloads fail on self-signed HTTPS.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>3</strong></td>
+                <td><strong>No analytics, tracking or telemetry SDKs</strong></td>
+                <td><span class="status-badge status-confirmed">Confirmed</span></td>
+                <td>
+                  <code>app/build.gradle.kts:120-175</code><br>
+                  Audit confirms zero tracking libraries (no Firebase, Crashlytics, Adjust, or Sentry). Only Google Play Billing & In-App Review are linked.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>4</strong></td>
+                <td><strong>Network traffic goes only to user servers + Google Play</strong></td>
+                <td><span class="status-badge status-not-confirmed">Not Confirmed</span></td>
+                <td>
+                  <code>managers/ArtistArtworkManager.kt:258, 296</code><br>
+                  App makes outbound HTTP queries to <code>api.deezer.com</code> and <code>itunes.apple.com</code> to resolve missing artist portraits.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>5</strong></td>
+                <td><strong>Passwords and tokens stored only on device</strong></td>
+                <td><span class="status-badge status-confirmed">Confirmed</span></td>
+                <td>
+                  <code>NavidromeManager.kt:160</code>, <code>EmbyJellyfinManager.kt:297</code>, <code>AudiobookshelfManager.kt:196</code><br>
+                  Credentials stored in sandboxed Android <code>SharedPreferences</code> in <code>Context.MODE_PRIVATE</code>. (Not encrypted with Keystore, but isolated by OS sandbox).
+                </td>
+              </tr>
+              <tr>
+                <td><strong>6</strong></td>
+                <td><strong>Scrobbling goes back to Navidrome (and supported servers)</strong></td>
+                <td><span class="status-badge status-confirmed">Confirmed</span></td>
+                <td>
+                  <code>NavidromeDataSource.kt:369</code> (Subsonic <code>scrobble.view</code>)<br>
+                  <code>EmbyJellyfinDataSource.kt:1051</code> (Jellyfin/Emby <code>/Sessions/Playing/Stopped</code>)<br>
+                  <code>player/MusicService.kt:1822</code>. Both Navidrome AND Jellyfin/Emby receive scrobbles.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>7</strong></td>
+                <td><strong>Shuffle uses skip/finish history & spaces out artists</strong></td>
+                <td><span class="status-badge status-confirmed">Confirmed</span></td>
+                <td>
+                  <code>player/SmartShuffleHelper.kt:21-235</code><br>
+                  Tracks divided into Cooling (8h), Familiar (25%), Standard (50%), Discovery (25%). Skips penalize score by <code>4.0f</code>. Enforces 3-artist gap and 2-album gap looking up to 15 tracks ahead.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>8</strong></td>
+                <td><strong>Music and audiobooks share one queue and one set of downloads</strong></td>
+                <td><span class="status-badge status-partial">Partially Confirmed</span></td>
+                <td>
+                  <code>player/MusicService.kt:143</code>, <code>MusicDownloadManager.kt:45</code>, <code>AudiobookDownloadManager.kt:43</code><br>
+                  They share the background ExoPlayer service, but <strong>not</strong> a combined queue or downloads. Playing a book replaces the music queue, and music/books use separate download managers and directories.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>9</strong></td>
+                <td><strong>Android Auto supports both music and audiobooks</strong></td>
+                <td><span class="status-badge status-confirmed">Confirmed</span></td>
+                <td>
+                  <code>player/MusicService.kt:2570-2646</code><br>
+                  Exposes nodes for Home, Albums, Songs, Artists, Playlists, and <code>nodeAUDIOBOOKS</code>, plus <code>nodeSOURCES</code> to switch active backends on the car display.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>10</strong></td>
+                <td><strong>Audiobook speed 0.5x–2.0x & auto-rewind works as described</strong></td>
+                <td><span class="status-badge status-confirmed">Confirmed</span></td>
+                <td>
+                  <code>managers/AudiobookshelfManager.kt:1364, 1422-1440</code><br>
+                  Speed clamped via <code>.coerceIn(0.5f, 2.0f)</code>. Rewinds 0s (&lt;10s), 3s (&lt;1m), 10s (&lt;5m), 20s (&lt;30m), 29.5s (&gt;30m), clamped to chapter start.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>11</strong></td>
+                <td><strong>Audiobookshelf progress syncs in both directions</strong></td>
+                <td><span class="status-badge status-confirmed">Confirmed</span></td>
+                <td>
+                  <code>managers/AudiobookshelfManager.kt:1253-1310</code> & <code>player/MusicService.kt:1245-1275</code><br>
+                  Periodic sync heartbeats during play. On resume after pause &gt;= 10s, <code>fetchServerProgress</code> checks server position; updates if server timestamp is newer.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>12</strong></td>
+                <td><strong>Free vs. Paid feature gating breakdown</strong></td>
+                <td><span class="status-badge status-confirmed">Confirmed</span></td>
+                <td>
+                  <code>managers/ProManager.kt:59-66</code>, <code>MusicService.kt:3430</code><br>
+                  Local playback, EQ, local audiobooks, and Android Auto are free. Remote server connections, streaming, and downloads are gated by <code>ProManager.isUnlocked()</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>13</strong></td>
+                <td><strong>Custom HTTP headers for reverse proxy auth (Authelia/Authentik)</strong></td>
+                <td><span class="status-badge status-not-confirmed">Not Confirmed</span></td>
+                <td>
+                  <code>data/datasource/audiobookshelf/AudiobookshelfDataSource.kt</code><br>
+                  No custom header input or cookie injection exists in the UI or network layers. Forward-auth proxies will block requests unless an exclusion rule is defined for Aria.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 14. ARCHITECTURAL FINDINGS -->
+      <section id="architectural-notes">
+        <h2 class="section-header-title">
+          <span>14</span> Architectural Findings & Edge Cases
+        </h2>
+        <div class="callout callout-warning">
+          <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <div class="callout-content">
+            <strong>External Artwork Lookup Opt-Out:</strong>
+            <code>ArtistArtworkManager.kt</code> queries <code>api.deezer.com</code> and <code>itunes.apple.com</code> when artist portraits are missing. While a setting exists for <em>Online artist artwork</em> (<code>strings_settings.xml:18</code>), self-hosters running strict firewall rules should note that missing artist portraits will generate outbound DNS/HTTPS requests.
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <svg class="callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          <div class="callout-content">
+            <strong>Backup Security:</strong>
+            The settings export utility (<code>MusicBackup.kt</code>) writes server URLs, usernames, passwords, and tokens into a plaintext JSON file. Users should keep their exported backup files in a secure location.
+          </div>
+        </div>
+      </section>
+
+      <!-- FOOTER -->
+      <footer class="site-footer">
+        <div>Aria Documentation & Architecture Audit • v1.31.10</div>
+        <div>Built for Self-Hosted Media Enthusiasts</div>
+      </footer>
+
+    </main>
+
+    <!-- RIGHT TABLE OF CONTENTS -->
+    <aside class="right-toc">
+      <div class="toc-title">On this page</div>
+      <a href="#overview" class="toc-link">Overview</a>
+      <a href="#licensing" class="toc-link">Free vs. Paid</a>
+      <a href="#quickstart" class="toc-link">Quickstart</a>
+      <a href="#navidrome" class="toc-link">Server Setup</a>
+      <a href="#local-files" class="toc-link">Local Files</a>
+      <a href="#remote-access" class="toc-link">Remote Access</a>
+      <a href="#ssl-certificates" class="toc-link">SSL & Certificates</a>
+      <a href="#downloads-cache" class="toc-link">Downloads & Cache</a>
+      <a href="#audiobooks" class="toc-link">Audiobooks & Sync</a>
+      <a href="#android-auto" class="toc-link">Android Auto</a>
+      <a href="#privacy" class="toc-link">Privacy & Network</a>
+      <a href="#troubleshooting" class="toc-link">Troubleshooting</a>
+      <a href="#claims-audit" class="toc-link" style="color: var(--primary); font-weight: 600;">Verification Matrix</a>
+      <a href="#architectural-notes" class="toc-link">Findings</a>
+    </aside>
+
+  </div>
+
+  <!-- JAVASCRIPT: THEME & SCROLL -->
+  <script>
+    const html = document.documentElement;
+
+    function setTheme(theme) {
+      html.setAttribute('data-theme', theme);
+      localStorage.setItem('aria-theme', theme);
+    }
+
+    function toggleTheme() {
+      const current = html.getAttribute('data-theme');
+      setTheme(current === 'dark' ? 'light' : 'dark');
+    }
+
+    setTheme(localStorage.getItem('aria-theme') || 'dark');
+
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+    }
+
+    // Close mobile sidebar on link click
+    document.querySelectorAll('.sidebar-link').forEach(link => {
+      link.addEventListener('click', () => {
+        document.getElementById('sidebar').classList.remove('open');
+      });
+    });
+
+    // Active link highlighting on scroll
+    const sections = document.querySelectorAll('section');
+    const navLinks = document.querySelectorAll('.sidebar-link, .toc-link');
+
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(section => {
+        const sectionTop = section.offsetTop - 100;
+        if (pageYOffset >= sectionTop) {
+          current = section.getAttribute('id');
+        }
+      });
+
+      navLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === '#' + current) {
+          link.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
